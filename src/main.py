@@ -1,18 +1,15 @@
 import sys
 import os
+
+# Asegurar ruta base
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.preprocessing.opencv_loader import process_videos
-from src.config import paths
+from src.preprocessing.run_processing import run_processing
 
 def main():
-    print("Procesando videos de caídas...")
-    process_videos(paths.DATASET_CAIDA, paths.BUFFER_CAIDA)
-
-    print("\nProcesando videos sin caídas...")
-    process_videos(paths.DATASET_NO_CAIDA, paths.BUFFER_NO_CAIDA)
-
-    print("\nProcesamiento finalizado.")
+    print("\nIniciando procesamiento de videos...\n")
+    run_processing()
+    print("\nProcesamiento finalizado.\n")
 
 if __name__ == "__main__":
     main()
