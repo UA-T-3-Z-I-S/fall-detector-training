@@ -12,7 +12,7 @@ def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         for video_file in video_files:
             executor.submit(
                 process_single_video,
