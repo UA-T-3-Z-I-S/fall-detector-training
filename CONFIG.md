@@ -10,10 +10,33 @@ Verificar Versión **python --version**
 
 ### RUTAS DEL DATASET
 
-DATASET_CAIDA=*C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/caida*
-DATASET_NO_CAIDA=*C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/no_caida*
-BUFFERS_CAIDA=*C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/buffers_caida*
-BUFFERS_NO_CAIDA=*C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/buffers_no_caida*
+DATASET_TRAIN_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/train/caida
+
+DATASET_TRAIN_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/train/no_caida
+
+DATASET_VAL_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/val/caida
+
+DATASET_VAL_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/val/no_caida
+
+DATASET_TEST_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/test/caida
+
+DATASET_TEST_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/test/no_caida
+
+DATASET_DEMO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/demo/caida
+
+DATASET_DEMO_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/videos/demo/no_caida
+
+BUFFER_TRAIN_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/train/caida
+
+BUFFER_TRAIN_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/train/no_caida
+
+BUFFER_VAL_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/val/caida
+
+BUFFER_VAL_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/val/no_caida
+
+BUFFER_TEST_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/test/caida
+
+BUFFER_TEST_NO_CAIDA=C:/Users/sebas/OneDrive/Desktop/SISTEMA DE CAIDAS/datasets/procesados/test/no_caida
 
 ### ENTORNO DE DESARROLLO
 
