@@ -1,25 +1,24 @@
+import os
 import numpy as np
 from sklearn.utils import class_weight
-from src.dataset_loader.buffer_generator import BufferGenerator
 from src.config.paths import BUFFER_PATHS
 
 def get_class_weights():
-    generator = BufferGenerator(
-        caida_path=BUFFER_PATHS['train']['caida'],
-        no_caida_path=BUFFER_PATHS['train']['no_caida'],
-        batch_size=64,  # puede ser grande ya que solo usamos etiquetas
-        shuffle=False
-    )
+    caida_dir = BUFFER_PATHS['train']['caida']
+    no_caida_dir = BUFFER_PATHS['train']['no_caida']
 
-    # Recolectar todas las etiquetas de entrenamiento
-    all_labels = []
-    for _, labels in generator:
-        all_labels.extend(labels)
+    # Contar archivos .npy en cada clase
+    caida_files = [f for f in os.listdir(caida_dir) if f.endswith('.npy')]
+    no_caida_files = [f for f in os.listdir(no_caida_dir) if f.endswith('.npy')]
 
-    class_weights = class_weight.compute_class_weight(
+    # Generar etiquetas (1 = caída, 0 = no caída)
+    labels = [1] * len(caida_files) + [0] * len(no_caida_files)
+
+    # Calcular pesos de clase
+    weights = class_weight.compute_class_weight(
         class_weight='balanced',
-        classes=np.unique(all_labels),
-        y=all_labels
+        classes=np.unique(labels),
+        y=labels
     )
 
-    return dict(enumerate(class_weights))
+    return dict(enumerate(weights))

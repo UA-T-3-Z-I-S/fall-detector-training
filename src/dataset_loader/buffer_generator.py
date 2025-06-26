@@ -1,10 +1,9 @@
 import os
 import numpy as np
 from keras.utils import Sequence
-from src.models.cnn_model import build_cnn_model
 
 class BufferGenerator(Sequence):
-    def __init__(self, caida_dir, no_caida_dir, batch_size=12, shuffle=True): #batch_size por defecto
+    def __init__(self, caida_dir, no_caida_dir, batch_size=12, shuffle=True):
         self.batch_size = batch_size
         self.shuffle = shuffle
 
@@ -21,10 +20,8 @@ class BufferGenerator(Sequence):
                 self.files.append(os.path.join(no_caida_dir, f))
                 self.labels.append(0)
 
-        self.cnn = build_cnn_model()
-        self.cnn.trainable = False  # no se entrena la CNN
         self.indexes = np.arange(len(self.files))
-        if shuffle:
+        if self.shuffle:
             np.random.shuffle(self.indexes)
 
     def __len__(self):
@@ -35,11 +32,11 @@ class BufferGenerator(Sequence):
         batch_files = [self.files[i] for i in indexes]
         batch_labels = [self.labels[i] for i in indexes]
 
+        # Aquí simplemente cargas los buffers como están (imágenes crudas)
         batch_buffers = [np.load(f) for f in batch_files]
         batch_buffers = np.array(batch_buffers)
-        batch_features = self.cnn.predict(batch_buffers, verbose=0)
 
-        return batch_features, np.array(batch_labels)
+        return batch_buffers, np.array(batch_labels)
 
     def on_epoch_end(self):
         if self.shuffle:
