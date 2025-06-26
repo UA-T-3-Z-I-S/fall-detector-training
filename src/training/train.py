@@ -1,10 +1,11 @@
 import numpy as np
-from keras.models import load_model
-from keras.callbacks import ModelCheckpoint, CSVLogger
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from datetime import datetime
 import os
 import time
+from datetime import datetime
+from keras.models import load_model
+from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from src.models.combined_model import build_combined_model
 from src.utils.class_weights import get_class_weights
@@ -55,8 +56,16 @@ def train(epochs_to_train=2):
     final_epoch = initial_epoch + epochs_to_train
     print(f"🚀 Entrenando desde epoch {initial_epoch + 1} hasta {final_epoch}...")
 
+    # 📦 Callbacks
     checkpoint = ModelCheckpoint(model_path, monitor='val_accuracy', save_best_only=False)
     csv_logger = CSVLogger(csv_path, append=True)
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        patience=3,
+        restore_best_weights=True,
+        verbose=1
+    )
+    progress_bar = TQDMProgressBar(update_every=10)
 
     start_time = time.time()
     model.fit(
@@ -65,7 +74,7 @@ def train(epochs_to_train=2):
         epochs=final_epoch,
         initial_epoch=initial_epoch,
         class_weight=class_weights,
-        callbacks=[checkpoint, csv_logger, TQDMProgressBar()],
+        callbacks=[checkpoint, csv_logger, progress_bar, early_stopping],
         verbose=0
     )
     print(f"✅ Entrenamiento finalizado en {int((time.time() - start_time) / 60)} minutos.")
