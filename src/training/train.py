@@ -1,65 +1,64 @@
 import numpy as np
-from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, CSVLogger
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from datetime import datetime
 import os
 
-from src.dataset_loader.buffer_loader import load_train_data, load_val_data, load_test_data
-from src.models.cnn_model import build_cnn_model
-from src.models.lstm_model import build_lstm_model
+from src.models.combined_model import build_combined_model
 from src.utils.class_weights import get_class_weights
-
+from src.dataset_loader.buffer_generator import BufferGenerator
+from src.config.paths import BUFFER_PATHS
 
 def train():
-    # Cargar datos
-    print("📦 Cargando datos de entrenamiento, validación y test...")
-    X_train, y_train = load_train_data()
-    X_val, y_val = load_val_data()
-    X_test, y_test = load_test_data()
+    print("📦 Preparando generadores...")
+    batch_size = 12
+    train_gen = BufferGenerator(BUFFER_PATHS['train']['caida'], BUFFER_PATHS['train']['no_caida'], batch_size=batch_size)
+    val_gen = BufferGenerator(BUFFER_PATHS['val']['caida'], BUFFER_PATHS['val']['no_caida'], batch_size=batch_size)
+    test_gen = BufferGenerator(BUFFER_PATHS['test']['caida'], BUFFER_PATHS['test']['no_caida'], batch_size=batch_size, shuffle=False)
 
-    # CNN
-    print("🧠 Construyendo modelo CNN...")
-    cnn = build_cnn_model()
-    cnn.trainable = True
+    # 🔍 Probar un batch para verificar
+    print("🧪 Probando un batch del generador...")
+    X_batch, y_batch = train_gen[0]
+    print("Forma de X:", X_batch.shape)
+    print("Forma de y:", y_batch.shape)
 
-    print("📊 Extrayendo características...")
-    X_train_feat = cnn.predict(X_train)
-    X_val_feat = cnn.predict(X_val)
-    X_test_feat = cnn.predict(X_test)
+    # Modelo combinado
+    print("🧠 Construyendo modelo combinado CNN + LSTM...")
+    model = build_combined_model(input_shape=(16, 224, 224, 3), cnn_trainable=True)
 
-    # LSTM
-    print("🧠 Construyendo modelo LSTM...")
-    lstm = build_lstm_model(input_shape=X_train_feat.shape[1:])
-    lstm.compile(optimizer=Adam(1e-4), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
+    # Pesos de clase
     class_weights = get_class_weights()
     print(f"⚖️  Pesos de clase aplicados: {class_weights}")
 
+    # Callbacks
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
     checkpoint = ModelCheckpoint('models/fall_detector_model.keras', monitor='val_accuracy', save_best_only=True)
+    csv_logger = CSVLogger(f"models/training_log_{now}.csv")
 
     # Entrenamiento
     print("🚀 Iniciando entrenamiento...")
-    lstm.fit(
-        X_train_feat, y_train,
-        validation_data=(X_val_feat, y_val),
+    model.fit(
+        train_gen,
+        validation_data=val_gen,
         epochs=20,
-        batch_size=8,
         class_weight=class_weights,
-        callbacks=[checkpoint]
+        callbacks=[checkpoint, csv_logger]
     )
+    print("✅ Entrenamiento finalizado.")
 
-    print("✅ Entrenamiento terminado.")
+    # Evaluación
+    print("🧪 Evaluando modelo en test...")
+    y_true, y_pred = [], []
+    for X_batch, y_batch in test_gen:
+        y_probs = model.predict(X_batch)
+        preds = np.argmax(y_probs, axis=1)
+        y_true.extend(y_batch)
+        y_pred.extend(preds)
 
-    # Evaluación con test
-    print("🧪 Evaluando modelo...")
-    y_pred_probs = lstm.predict(X_test_feat)
-    y_pred = np.argmax(y_pred_probs, axis=1)
-
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred)
-    rec = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+    acc = accuracy_score(y_true, y_pred)
+    prec = precision_score(y_true, y_pred)
+    rec = recall_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
 
     print(f"\n📈 Resultados en test:")
     print(f"Accuracy:  {acc:.4f}")
@@ -67,8 +66,7 @@ def train():
     print(f"Recall:    {rec:.4f}")
     print(f"F1 Score:  {f1:.4f}")
 
-    # Guardar métricas en TXT
-    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Guardar resultados
     results_path = f"models/results_test_{now}.txt"
     with open(results_path, "w") as f:
         f.write(f"Resultados del modelo ({now}):\n")
@@ -77,11 +75,12 @@ def train():
         f.write(f"Recall:    {rec:.4f}\n")
         f.write(f"F1 Score:  {f1:.4f}\n")
 
-    # Guardar modelo con nombre personalizado
+    # Guardar modelo final con nombre basado en desempeño
     model_name = f"models/model_acc{int(acc*100)}_f1{int(f1*100)}.keras"
-    lstm.save(model_name)
+    model.save(model_name)
     print(f"\n💾 Modelo guardado como: {model_name}")
     print(f"📝 Resultados guardados en: {results_path}")
+    print(f"📄 Métricas por época: models/training_log_{now}.csv")
 
 
 if __name__ == "__main__":
