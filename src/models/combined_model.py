@@ -14,7 +14,8 @@ def build_combined_model(input_shape=(16, 224, 224, 3), num_classes=2, cnn_train
     cnn_features = cnn(inputs)     # Shape: (batch, 16, feature_dim)
 
     # Modelo LSTM (recibe las features de cada frame)
-    lstm_output = build_lstm_layers()(cnn_features)  # Output: (batch, num_classes)
+    lstm_block = build_lstm_layers()
+    lstm_output = lstm_block(cnn_features)  # Output: (batch, num_classes)
 
     # Modelo final
     model = Model(inputs=inputs, outputs=lstm_output)
