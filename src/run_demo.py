@@ -1,7 +1,6 @@
 import os
 import cv2
 import numpy as np
-import random
 from keras.models import load_model
 from keras.applications.efficientnet import preprocess_input
 from dotenv import load_dotenv
@@ -37,24 +36,25 @@ def extract_frames(video_path, max_frames=SEQUENCE_LENGTH):
         frames.append(frame)
     cap.release()
 
-    while len(frames) < max_frames:
+    while len(frames) < max_frames and len(frames) > 0:
         frames.append(np.zeros_like(frames[0]))
 
     return np.array(frames)
 
-def simulate_prediction(etiqueta_real):
+def predict(frames):
     """
-    Demo de predicción - Modelo Keras - GIT d555695c28624f2875cac4f712a18ab30ef51094
+    Usa el modelo entrenado para predecir si la secuencia representa una caída o no.
     """
-    #Reajuste
-    acertar = random.random() < random.uniform(0.5, 0.65)
-    if etiqueta_real == 'CAÍDA':
-        pred = 'CAÍDA' if acertar else 'NO CAÍDA'
-    else:
-        pred = 'NO CAÍDA' if acertar else 'CAÍDA'
-    
-    prob = round(random.uniform(0.6, 0.99), 2) if pred == etiqueta_real else round(random.uniform(0.01, 0.4), 2)
-    return pred, prob
+    if len(frames) == 0:
+        return "NO CAÍDA", 0.0  # Caso de video vacío o error
+
+    input_tensor = np.expand_dims(frames, axis=0)  # (1, 16, 224, 224, 3)
+    probabilities = model.predict(input_tensor, verbose=0)[0]
+    predicted_class = np.argmax(probabilities)
+    classes = ['NO CAÍDA', 'CAÍDA']
+    predicted_label = classes[predicted_class]
+    confidence = probabilities[predicted_class]
+    return predicted_label, round(float(confidence), 2)
 
 def process_video_folder(folder_path, etiqueta_real, resultados, aciertos, total):
     aciertos_tipo = 0
@@ -65,9 +65,7 @@ def process_video_folder(folder_path, etiqueta_real, resultados, aciertos, total
             continue
         video_path = os.path.join(folder_path, video_file)
         frames = extract_frames(video_path)
-
-        # Simulación en lugar de modelo real
-        prediccion, prob = simulate_prediction(etiqueta_real)
+        prediccion, prob = predict(frames)
 
         resultado = f"{video_file} ({etiqueta_real}) -> {prediccion} ({prob:.2f})"
         resultados.append(resultado)
@@ -82,8 +80,8 @@ def process_video_folder(folder_path, etiqueta_real, resultados, aciertos, total
 
 def guardar_resultados_global(resultados, aciertos, total, aciertos_caida, total_caida, aciertos_no_caida, total_no_caida):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    result_file = os.path.join(SCRIPT_DIR, f"resultados_demo_simulados_{timestamp}.txt")
-    
+    result_file = os.path.join(SCRIPT_DIR, f"resultados_demo_{timestamp}.txt")
+
     with open(result_file, 'w', encoding='utf-8') as f:
         for r in resultados:
             f.write(r + "\n")
@@ -93,18 +91,18 @@ def guardar_resultados_global(resultados, aciertos, total, aciertos_caida, total
         f.write("---\n")
         f.write(f"Aciertos totales: {aciertos}/{total} = {aciertos/total:.2%}\n")
 
-    print(f"[✓] Resultados simulados guardados en {result_file}")
+    print(f"[✓] Resultados guardados en {result_file}")
 
 def main():
     resultados = []
     aciertos = 0
     total = 0
 
-    print("[🔍] Procesando videos de CAÍDA (simulado)...")
+    print("[🔍] Procesando videos de CAÍDA...")
     resultados, aciertos, total, aciertos_caida, total_caida = process_video_folder(
         DEMO_CAIDA, 'CAÍDA', resultados, aciertos, total)
 
-    print("[🔍] Procesando videos de NO CAÍDA (simulado)...")
+    print("[🔍] Procesando videos de NO CAÍDA...")
     resultados, aciertos, total, aciertos_no_caida, total_no_caida = process_video_folder(
         DEMO_NO_CAIDA, 'NO CAÍDA', resultados, aciertos, total)
 
