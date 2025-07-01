@@ -101,7 +101,8 @@ def train(epochs_to_train=20):
             validation_data=val_gen,
             epochs=final_epoch,
             initial_epoch=initial_epoch,
-            verbose=0  # ⛔ NO uses class_weight aquí
+            verbose=0,
+            # sample_weight ya viene del generador, no necesitas pasarlo aquí
         )
     except KeyboardInterrupt:
         print("\n🛑 Entrenamiento interrumpido manualmente. Guardando progreso...")
