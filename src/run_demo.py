@@ -6,109 +6,128 @@ from keras.applications.efficientnet import preprocess_input
 from dotenv import load_dotenv
 from datetime import datetime
 
-# Cargar variables de entorno
+# ─── Configuración ─────────────────────────────────────────────────────────────
 load_dotenv()
-
-DEMO_CAIDA = os.getenv('DATASET_DEMO_CAIDA')
+DEMO_CAIDA    = os.getenv('DATASET_DEMO_CAIDA')
 DEMO_NO_CAIDA = os.getenv('DATASET_DEMO_NO_CAIDA')
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(SCRIPT_DIR, 'models', 'fall_detector_model.keras')
-
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"[❌] Modelo no encontrado en: {MODEL_PATH}")
-
-print(f"[📦] Cargando modelo desde: {MODEL_PATH}")
-model = load_model(MODEL_PATH)
+model      = load_model(MODEL_PATH)
 
 SEQUENCE_LENGTH = 16
-FRAME_SIZE = (224, 224)
+FRAME_SIZE      = (224, 224)
 
-def extract_frames(video_path, max_frames=SEQUENCE_LENGTH):
+RESULTADOS_DIR = os.path.join(SCRIPT_DIR, 'resultados')
+os.makedirs(RESULTADOS_DIR, exist_ok=True)
+timestamp   = datetime.now().strftime("%Y%m%d_%H%M%S")
+result_file = os.path.join(RESULTADOS_DIR, f"modelo_demo_{timestamp}.txt")
+result_log  = open(result_file, 'w', encoding='utf-8')
+# ───────────────────────────────────────────────────────────────────────────────
+
+def extract_all_frames(video_path):
     cap = cv2.VideoCapture(video_path)
     frames = []
-    while len(frames) < max_frames:
+    while True:
         ret, frame = cap.read()
         if not ret:
             break
         frame = cv2.resize(frame, FRAME_SIZE)
-        frame = preprocess_input(frame.astype(np.float32))
-        frames.append(frame)
+        frames.append(preprocess_input(frame.astype(np.float32)))
     cap.release()
-
-    while len(frames) < max_frames and len(frames) > 0:
-        frames.append(np.zeros_like(frames[0]))
-
     return np.array(frames)
 
-def predict(frames):
-    """
-    Usa el modelo entrenado para predecir si la secuencia representa una caída o no.
-    """
-    if len(frames) == 0:
-        return "NO CAÍDA", 0.0  # Caso de video vacío o error
+def sliding_windows(frames, seq_len, overlap):
+    step = max(1, int(seq_len * (1 - overlap)))
+    for st in range(0, len(frames) - seq_len + 1, step):
+        yield frames[st:st + seq_len]
 
-    input_tensor = np.expand_dims(frames, axis=0)  # (1, 16, 224, 224, 3)
-    probabilities = model.predict(input_tensor, verbose=0)[0]
-    predicted_class = np.argmax(probabilities)
-    classes = ['NO CAÍDA', 'CAÍDA']
-    predicted_label = classes[predicted_class]
-    confidence = probabilities[predicted_class]
-    return predicted_label, round(float(confidence), 2)
+def predict_window(window, threshold):
+    x    = window[np.newaxis, ...]
+    prob = float(model.predict(x, verbose=0)[0][1])
+    return (1 if prob >= threshold else 0), prob
 
-def process_video_folder(folder_path, etiqueta_real, resultados, aciertos, total):
-    aciertos_tipo = 0
-    total_tipo = 0
+def evaluar_video(frames, threshold, overlap, vote_ratio):
+    preds, probs = [], []
+    for win in sliding_windows(frames, SEQUENCE_LENGTH, overlap):
+        p, pr = predict_window(win, threshold)
+        preds.append(p)
+        probs.append(pr)
+    if preds:
+        frac = sum(preds) / len(preds)
+        final = "CAÍDA" if frac >= vote_ratio else "NO CAÍDA"
+        avg_p = float(np.mean(probs))
+    else:
+        final, avg_p = "NO CAÍDA", 0.0
+    return final, avg_p
 
-    for video_file in os.listdir(folder_path):
-        if not video_file.endswith('.mp4'):
-            continue
-        video_path = os.path.join(folder_path, video_file)
-        frames = extract_frames(video_path)
-        prediccion, prob = predict(frames)
+def procesar_dataset(folder, label_real, threshold, overlap, vote_ratio):
+    aciertos, total = 0, 0
+    resultados = []
 
-        resultado = f"{video_file} ({etiqueta_real}) -> {prediccion} ({prob:.2f})"
-        resultados.append(resultado)
+    for vf in sorted(os.listdir(folder)):
+        if not vf.endswith('.mp4'): continue
+        video_path = os.path.join(folder, vf)
+        frames = extract_all_frames(video_path)
+        pred, prob = evaluar_video(frames, threshold, overlap, vote_ratio)
 
-        if prediccion == etiqueta_real:
+        correcto = "✅" if pred == label_real else "❌"
+        if correcto == "✅":
             aciertos += 1
-            aciertos_tipo += 1
         total += 1
-        total_tipo += 1
 
-    return resultados, aciertos, total, aciertos_tipo, total_tipo
+        resultados.append(f"{vf} ({label_real}) -> {pred} ({prob:.2f}) {correcto}")
 
-def guardar_resultados_global(resultados, aciertos, total, aciertos_caida, total_caida, aciertos_no_caida, total_no_caida):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    result_file = os.path.join(SCRIPT_DIR, f"resultados_demo_{timestamp}.txt")
-
-    with open(result_file, 'w', encoding='utf-8') as f:
-        for r in resultados:
-            f.write(r + "\n")
-        f.write("\n---\n")
-        f.write(f"Aciertos en CAÍDA: {aciertos_caida}/{total_caida} = {aciertos_caida/total_caida:.2%}\n")
-        f.write(f"Aciertos en NO CAÍDA: {aciertos_no_caida}/{total_no_caida} = {aciertos_no_caida/total_no_caida:.2%}\n")
-        f.write("---\n")
-        f.write(f"Aciertos totales: {aciertos}/{total} = {aciertos/total:.2%}\n")
-
-    print(f"[✓] Resultados guardados en {result_file}")
+    return resultados, aciertos, total
 
 def main():
-    resultados = []
-    aciertos = 0
-    total = 0
+    #thresholds = [0.5, 0.7, 0.9]
+    #thresholds = [0.5]
+    thresholds = [0.7]
+    #thresholds = [0.9]
 
-    print("[🔍] Procesando videos de CAÍDA...")
-    resultados, aciertos, total, aciertos_caida, total_caida = process_video_folder(
-        DEMO_CAIDA, 'CAÍDA', resultados, aciertos, total)
+    #overlaps   = [0.3, 0.1, 0.0]
+    overlaps   = [0.3]
+    #overlaps   = [0.2]
+    #overlaps   = [0.1]
+    #overlaps   = [0.0]
 
-    print("[🔍] Procesando videos de NO CAÍDA...")
-    resultados, aciertos, total, aciertos_no_caida, total_no_caida = process_video_folder(
-        DEMO_NO_CAIDA, 'NO CAÍDA', resultados, aciertos, total)
+    #vote_ratio = 0.5
+    vote_ratio = 0.6
+    #vote_ratio = 0.7
+    #vote_ratio = 0.85
 
-    guardar_resultados_global(resultados, aciertos, total,
-                              aciertos_caida, total_caida,
-                              aciertos_no_caida, total_no_caida)
+    for overlap in overlaps:
+        for threshold in thresholds:
+            result_log.write("\n" + "="*60 + "\n")
+            result_log.write(f"🔍 Evaluación: OVERLAP = {overlap:.2f}, THRESHOLD = {threshold:.2f}\n")
+            result_log.write("="*60 + "\n")
+
+            # Procesar CAÍDA
+            caida_res, caida_aciertos, caida_total = procesar_dataset(
+                DEMO_CAIDA, "CAÍDA", threshold, overlap, vote_ratio)
+
+            # Procesar NO CAÍDA
+            no_caida_res, no_caida_aciertos, no_caida_total = procesar_dataset(
+                DEMO_NO_CAIDA, "NO CAÍDA", threshold, overlap, vote_ratio)
+
+            # Escribir resultados individuales
+            for r in caida_res + no_caida_res:
+                result_log.write(r + "\n")
+
+            # Resumen por combinación
+            total_aciertos = caida_aciertos + no_caida_aciertos
+            total_videos   = caida_total + no_caida_total
+
+            result_log.write("\n📊 RESUMEN:\n")
+            result_log.write(f"Aciertos en CAÍDA:    {caida_aciertos}/{caida_total} = {caida_aciertos/caida_total:.2%}\n")
+            result_log.write(f"Aciertos en NO CAÍDA: {no_caida_aciertos}/{no_caida_total} = {no_caida_aciertos/no_caida_total:.2%}\n")
+            result_log.write(f"TOTAL GLOBAL:         {total_aciertos}/{total_videos} = {total_aciertos/total_videos:.2%}\n")
+            result_log.write("\n\n")
+            result_log.flush()
+
+    result_log.close()
+    print(f"[✅] Resultados guardados en: {result_file}")
 
 if __name__ == "__main__":
     main()

@@ -3,9 +3,7 @@ import os
 import time
 from datetime import datetime
 from keras.models import load_model
-from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping
-
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, Callback
 
 from src.models.combined_model import build_combined_model
 from src.utils.class_weights import get_class_weights
@@ -13,7 +11,36 @@ from src.dataset_loader.buffer_generator import BufferGenerator
 from src.config.paths import BUFFER_PATHS
 from src.utils.tqdm_callback import TQDMProgressBar
 
-def train(epochs_to_train=2):
+class CustomStopCallback(Callback):
+    def __init__(self, threshold=0.82, patience=3, min_improvement=0.01):
+        super().__init__()
+        self.threshold = threshold
+        self.patience = patience
+        self.min_improvement = min_improvement
+        self.wait = 0
+        self.best = 0.0
+
+    def on_epoch_end(self, epoch, logs=None):
+        val_acc = logs.get('val_accuracy')
+        if val_acc is None:
+            return
+
+        if val_acc < self.threshold:
+            print(f"⚠️  val_accuracy ({val_acc:.4f}) < umbral {self.threshold:.2f}")
+
+        improvement = val_acc - self.best
+        if improvement >= self.min_improvement:
+            self.best = val_acc
+            self.wait = 0
+            print(f"✅ Mejora detectada en val_accuracy: {val_acc:.4f}")
+        else:
+            self.wait += 1
+            print(f"⏳ No hubo mejora suficiente ({self.wait}/{self.patience})")
+            if self.wait >= self.patience and val_acc < self.threshold:
+                print("🛑 Parando entrenamiento: val_accuracy bajo y sin mejoras suficientes.")
+                self.model.stop_training = True
+
+def train(epochs_to_train=20):
     print("📦 Preparando generadores...")
     batch_size = 12
     class_weights = get_class_weights()
@@ -33,17 +60,11 @@ def train(epochs_to_train=2):
         class_weights=class_weights
     )
 
-    test_gen = BufferGenerator(
-        BUFFER_PATHS['test']['caida'],
-        BUFFER_PATHS['test']['no_caida'],
-        batch_size=batch_size,
-        shuffle=False
-    )
-
     print("🧪 Probando un batch del generador...")
-    X_batch, y_batch, _ = train_gen[0]
+    X_batch, y_batch, sample_weights = train_gen[0]
     print("✅ Batch cargado correctamente.")
     print("Forma de X:", X_batch.shape)
+    print("🎯 Sample weights (primeros):", sample_weights[:5])
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     models_dir = os.path.join(base_dir, "models")
@@ -71,62 +92,23 @@ def train(epochs_to_train=2):
 
     checkpoint = ModelCheckpoint(model_path, monitor='val_accuracy', save_best_only=False)
     csv_logger = CSVLogger(csv_path, append=True)
-    early_stopping = EarlyStopping(
-        monitor='val_loss',
-        patience=3,
-        restore_best_weights=True,
-        verbose=1
-    )
+    early_stopping = EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True, verbose=1)
     progress_bar = TQDMProgressBar(update_every=10)
-
     start_time = time.time()
-    model.fit(
-        train_gen,
-        validation_data=val_gen,
-        epochs=final_epoch,
-        initial_epoch=initial_epoch,
-        callbacks=[checkpoint, csv_logger, progress_bar, early_stopping],
-        verbose=0
-    )
-    print(f"✅ Entrenamiento finalizado en {int((time.time() - start_time) / 60)} minutos.")
+    try:
+        model.fit(
+            train_gen,
+            validation_data=val_gen,
+            epochs=final_epoch,
+            initial_epoch=initial_epoch,
+            verbose=0  # ⛔ NO uses class_weight aquí
+        )
+    except KeyboardInterrupt:
+        print("\n🛑 Entrenamiento interrumpido manualmente. Guardando progreso...")
 
+    print(f"✅ Entrenamiento finalizado en {int((time.time() - start_time) / 60)} minutos.")
     with open(epoch_log_path, "w") as f:
         f.write(str(final_epoch))
 
-    print("🧪 Evaluando modelo en test...")
-    y_true, y_pred = [], []
-    for i, (X_batch, y_batch) in enumerate(test_gen):
-        print(f"🔢 Evaluando batch {i+1}/{len(test_gen)}...")
-        y_probs = model.predict(X_batch)
-        preds = np.argmax(y_probs, axis=1)
-        y_true.extend(y_batch)
-        y_pred.extend(preds)
-
-    acc = accuracy_score(y_true, y_pred)
-    prec = precision_score(y_true, y_pred)
-    rec = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
-
-    print(f"\n📈 Resultados en test:")
-    print(f"Accuracy:  {acc:.4f}")
-    print(f"Precision: {prec:.4f}")
-    print(f"Recall:    {rec:.4f}")
-    print(f"F1 Score:  {f1:.4f}")
-
-    results_path = os.path.join(models_dir, "results_test.txt")
-    with open(results_path, "w") as f:
-        f.write("Resultados del modelo:\n")
-        f.write(f"Accuracy:  {acc:.4f}\n")
-        f.write(f"Precision: {prec:.4f}\n")
-        f.write(f"Recall:    {rec:.4f}\n")
-        f.write(f"F1 Score:  {f1:.4f}\n")
-
-    model_name = os.path.join(models_dir, f"model_acc{int(acc*100)}_f1{int(f1*100)}.keras")
-    model.save(model_name)
-    print(f"\n💾 Modelo guardado como: {model_name}")
-    print(f"📝 Resultados guardados en: {results_path}")
-    print(f"📄 Métricas por época: {csv_path}")
-    print(f"🧾 Epochs acumuladas: {final_epoch} (guardadas en {epoch_log_path})")
-
 if __name__ == "__main__":
-    train(epochs_to_train=2)
+    train(epochs_to_train=5)

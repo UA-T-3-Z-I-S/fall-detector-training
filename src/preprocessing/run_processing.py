@@ -7,4 +7,6 @@ def run_processing():
             ruta_entrada = VIDEO_PATHS[subset][clase]
             ruta_salida = BUFFER_PATHS[subset][clase]
             print(f"Procesando {subset.upper()} - {clase}...")
-            process_videos(ruta_entrada, ruta_salida, label=clase)
+            # Solo aplica augmentación en train
+            augment = (subset == 'train')
+            process_videos(ruta_entrada, ruta_salida, label=clase, augment=augment)

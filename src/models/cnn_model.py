@@ -17,7 +17,7 @@ def build_cnn_model(input_shape=(224, 224, 3), regularize=True):
     if regularize:
         layers.extend([
             TimeDistributed(BatchNormalization()),
-            TimeDistributed(Dropout(0.3))  # Puedes ajustar el ratio si ves que hace falta
+            TimeDistributed(Dropout(0.5))  # Subido de 0.3 a 0.5
         ])
 
     return Sequential(layers)

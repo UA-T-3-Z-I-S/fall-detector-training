@@ -11,3 +11,7 @@ Para el Entrenamiento
 Para el Demo
 
 **python src/run_demo.py**
+
+Para el Test
+
+**python -m src.training.evaluate**

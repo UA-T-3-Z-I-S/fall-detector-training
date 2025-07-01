@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from src.preprocessing.loader_opencv import load_video_frames
 from src.preprocessing.buffer_creator import create_buffers
 
-def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, target_size=(224, 224)):
+def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, target_size=(224, 224), augment=False):
     print(f"📦 Procesando videos de '{label}' en {input_path}...")
 
     video_files = [f for f in os.listdir(input_path) if f.endswith(('.mp4', '.avi'))]
@@ -22,16 +22,17 @@ def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, 
                 buffer_size,
                 overlap,
                 target_size,
-                label
+                label,
+                augment  # <-- pasa el parámetro
             )
 
-def process_single_video(video_file, input_path, output_path, buffer_size=16, overlap=0.3, target_size=(224, 224), label=None):
+def process_single_video(video_file, input_path, output_path, buffer_size=16, overlap=0.3, target_size=(224, 224), label=None, augment=False):
     video_path = os.path.join(input_path, video_file)
 
     try:
         frames = load_video_frames(video_path)
 
-        buffers = create_buffers(frames, buffer_size, overlap, target_size)
+        buffers = create_buffers(frames, buffer_size, overlap, target_size, augment=augment)
 
         for idx, buffer in enumerate(buffers):
             save_path = os.path.join(output_path, f'{os.path.splitext(video_file)[0]}_buffer_{idx}.npy')
@@ -41,3 +42,4 @@ def process_single_video(video_file, input_path, output_path, buffer_size=16, ov
 
     except Exception as e:
         print(f'❌ Error procesando {video_file}: {e}')
+
