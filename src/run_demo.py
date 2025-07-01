@@ -5,11 +5,12 @@ from keras.models import load_model
 from keras.applications.efficientnet import preprocess_input
 from dotenv import load_dotenv
 from datetime import datetime
+import random
 
 # ─── Configuración ─────────────────────────────────────────────────────────────
 load_dotenv()
-DEMO_CAIDA    = os.getenv('DATASET_DEMO_CAIDA')
-DEMO_NO_CAIDA = os.getenv('DATASET_DEMO_NO_CAIDA')
+TEST_CAIDA    = os.getenv('DATASET_TEST_CAIDA')
+TEST_NO_CAIDA = os.getenv('DATASET_TEST_NO_CAIDA')
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(SCRIPT_DIR, 'models', 'fall_detector_model.keras')
@@ -61,12 +62,18 @@ def evaluar_video(frames, threshold, overlap, vote_ratio):
         final, avg_p = "NO CAÍDA", 0.0
     return final, avg_p
 
-def procesar_dataset(folder, label_real, threshold, overlap, vote_ratio):
+def get_sampled_videos(folder, porcentaje=0.1):
+    videos = [f for f in os.listdir(folder) if f.endswith('.mp4')]
+    n = max(1, int(len(videos) * porcentaje))
+    return random.sample(videos, n)
+
+def procesar_dataset(folder, label_real, threshold, overlap, vote_ratio, porcentaje=0.1):
     aciertos, total = 0, 0
     resultados = []
 
-    for vf in sorted(os.listdir(folder)):
-        if not vf.endswith('.mp4'): continue
+    sampled_videos = get_sampled_videos(folder, porcentaje)
+
+    for vf in sorted(sampled_videos):
         video_path = os.path.join(folder, vf)
         frames = extract_all_frames(video_path)
         pred, prob = evaluar_video(frames, threshold, overlap, vote_ratio)
@@ -105,11 +112,11 @@ def main():
 
             # Procesar CAÍDA
             caida_res, caida_aciertos, caida_total = procesar_dataset(
-                DEMO_CAIDA, "CAÍDA", threshold, overlap, vote_ratio)
+                TEST_CAIDA, "CAÍDA", threshold, overlap, vote_ratio)
 
             # Procesar NO CAÍDA
             no_caida_res, no_caida_aciertos, no_caida_total = procesar_dataset(
-                DEMO_NO_CAIDA, "NO CAÍDA", threshold, overlap, vote_ratio)
+                TEST_NO_CAIDA, "NO CAÍDA", threshold, overlap, vote_ratio)
 
             # Escribir resultados individuales
             for r in caida_res + no_caida_res:

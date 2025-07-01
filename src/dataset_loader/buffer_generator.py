@@ -3,23 +3,32 @@ import numpy as np
 from keras.utils import Sequence
 
 class BufferGenerator(Sequence):
-    def __init__(self, caida_dir, no_caida_dir, batch_size=12, shuffle=True, class_weights=None):
+    def __init__(self, caida_dirs, no_caida_dirs, batch_size=12, shuffle=True, class_weights=None):
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.class_weights = class_weights or {0: 1.0, 1: 1.0}  # fallback por si no se pasa
+        self.class_weights = class_weights or {0: 1.0, 1: 1.0}
 
         self.files = []
         self.labels = []
 
-        for f in os.listdir(caida_dir):
-            if f.endswith('.npy'):
-                self.files.append(os.path.join(caida_dir, f))
-                self.labels.append(1)
+        if isinstance(caida_dirs, str):
+            caida_dirs = [caida_dirs]
+        if isinstance(no_caida_dirs, str):
+            no_caida_dirs = [no_caida_dirs]
 
-        for f in os.listdir(no_caida_dir):
-            if f.endswith('.npy'):
-                self.files.append(os.path.join(no_caida_dir, f))
-                self.labels.append(0)
+        for d in caida_dirs:
+            if d and os.path.exists(d):
+                for f in os.listdir(d):
+                    if f.endswith('.npy'):
+                        self.files.append(os.path.join(d, f))
+                        self.labels.append(1)
+
+        for d in no_caida_dirs:
+            if d and os.path.exists(d):
+                for f in os.listdir(d):
+                    if f.endswith('.npy'):
+                        self.files.append(os.path.join(d, f))
+                        self.labels.append(0)
 
         self.indexes = np.arange(len(self.files))
         if self.shuffle:
@@ -37,7 +46,6 @@ class BufferGenerator(Sequence):
         batch_buffers = np.array(batch_buffers)
         batch_labels = np.array(batch_labels)
 
-        # 🟡 Asigna un peso a cada muestra en el batch
         sample_weights = np.array([self.class_weights[label] for label in batch_labels])
 
         return batch_buffers, batch_labels, sample_weights
