@@ -23,7 +23,7 @@ def convertir_avi_a_mp4_temporal(ruta_avi):
         shutil.rmtree(temp_dir)
         raise RuntimeError(f"Error convirtiendo {ruta_avi} a mp4: {e}")
 
-def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, target_size=(224, 224), augment=False):
+def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.1, target_size=(224, 224), augment=False):
     print(f"📦 Procesando videos de '{label}' en {input_path}...")
 
     video_files = [f for f in os.listdir(input_path) if f.endswith(('.mp4', '.avi'))]
@@ -45,7 +45,7 @@ def process_videos(input_path, output_path, label, buffer_size=16, overlap=0.3, 
                 augment  # <-- pasa el parámetro
             )
 
-def process_single_video(video_file, input_path, output_path, buffer_size=16, overlap=0.3, target_size=(224, 224), label=None, augment=False):
+def process_single_video(video_file, input_path, output_path, buffer_size=16, overlap=0.1, target_size=(224, 224), label=None, augment=False):
     video_path = os.path.join(input_path, video_file)
     temp_dir = None
 

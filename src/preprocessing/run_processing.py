@@ -13,5 +13,5 @@ def run_processing():
                 rutas_salida = [rutas_salida]
             for ruta_entrada, ruta_salida in zip(rutas_entrada, rutas_salida):
                 print(f"Procesando {subset.upper()} - {clase} - {ruta_entrada}...")
-                augment = (subset == 'train')
+                augment = False  # Quitar augmentación para todos los sets (subset == 'train')
                 process_videos(ruta_entrada, ruta_salida, label=clase, augment=augment)

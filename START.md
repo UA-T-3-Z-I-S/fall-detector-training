@@ -10,7 +10,7 @@ Para el Entrenamiento
 
 Para el Demo
 
-**python src/run_demo.py**
+**python -m src.run_demo**
 
 Para el Test
 

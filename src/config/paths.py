@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_env_list(prefix, n=5):
+def get_env_list(prefix, n=3):
     """Devuelve una lista de rutas de variables de entorno con prefijo y número."""
     return [os.getenv(f"{prefix}_{i}") for i in range(1, n+1) if os.getenv(f"{prefix}_{i}")]
 
@@ -20,10 +20,6 @@ VIDEO_PATHS = {
     'test': {
         'caida': os.getenv('DATASET_TEST_CAIDA'),
         'no_caida': os.getenv('DATASET_TEST_NO_CAIDA'),
-    },
-    'demo': {
-        'caida': os.getenv('DATASET_DEMO_CAIDA'),
-        'no_caida': os.getenv('DATASET_DEMO_NO_CAIDA'),
     }
 }
 

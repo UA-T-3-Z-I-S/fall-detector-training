@@ -118,8 +118,8 @@ def train(epochs_to_train=20):
         print(f"📊 Última val_accuracy: {last_val_acc:.4f} | Última val_loss: {last_val_loss:.4f}")
 
 def train_etapas():
-    etapas = [1, 2, 3, 4, 5]
-    epocas_por_etapa = [2, 2, 2, 2, 2]  # Puedes ajustar esto si lo deseas
+    etapas = [3]
+    epocas_por_etapa = [2]  # Puedes ajustar esto si lo deseas
 
     batch_size = 12
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
