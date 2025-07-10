@@ -1,0 +1,5 @@
+Resultados del modelo:
+Accuracy:  0.9626
+Precision: 1.0000
+Recall:    0.9559
+F1 Score:  0.9775
